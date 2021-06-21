@@ -5,6 +5,7 @@ public class Product {
     private Long id;
     private String name;
     private float cost;
+    private String description;
 
     public Product() {
     }
@@ -37,5 +38,13 @@ public class Product {
 
     public void setCost(float cost) {
         this.cost = cost;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
     }
 }
