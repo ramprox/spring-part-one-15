@@ -15,6 +15,7 @@ import ru.geekbrains.persist.Product;
 import ru.geekbrains.persist.ProductRepository;
 
 import javax.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,9 +33,44 @@ public class ProductController {
     }
 
     @GetMapping
-    public String listPage(Model model) {
+    public String listPage(Model model,
+                           @RequestParam("productNameFilter") Optional<String> productNameFilter,
+                           @RequestParam("minCostFilter") Optional<BigDecimal> minCostFilter,
+                           @RequestParam("maxCostFilter") Optional<BigDecimal> maxCostFilter) {
         logger.info("Product list page requested");
-        model.addAttribute("products", productRepository.findAll());
+        List<Product> products;
+        boolean isNameFilterPresent = productNameFilter.isPresent();
+        boolean isMinCostPresent = minCostFilter.isPresent();
+        boolean isMaxCostPresent = maxCostFilter.isPresent();
+        if(isNameFilterPresent && !isMinCostPresent && !isMaxCostPresent) {
+            products = productRepository
+                    .findByNameStartsWith(productNameFilter.get());
+        } else if(!isNameFilterPresent && isMinCostPresent && !isMaxCostPresent) {
+            products = productRepository
+                    .findByCostGreaterThanEqual(minCostFilter.get());
+        } else if(!isNameFilterPresent && !isMinCostPresent && isMaxCostPresent) {
+            products = productRepository
+                    .findByCostLessThanEqual(maxCostFilter.get());
+        } else if(isNameFilterPresent && isMinCostPresent && !isMaxCostPresent) {
+            products = productRepository
+                    .findByNameStartsWithAndCostGreaterThanEqual(productNameFilter.get(),
+                            minCostFilter.get());
+        } else if(isNameFilterPresent && !isMinCostPresent && isMaxCostPresent) {
+            products = productRepository
+                    .findByNameStartsWithAndCostLessThanEqual(productNameFilter.get(),
+                            maxCostFilter.get());
+        } else if(!isNameFilterPresent && isMinCostPresent && isMaxCostPresent) {
+            products = productRepository
+                    .findByCostBetween(minCostFilter.get(),
+                            maxCostFilter.get());
+        } else if(isNameFilterPresent && isMinCostPresent && isMaxCostPresent) {
+            products = productRepository
+                    .findByNameStartsWithAndCostBetween(productNameFilter.get(), minCostFilter.get(),
+                            maxCostFilter.get());
+        } else {
+            products = productRepository.findAll();
+        }
+        model.addAttribute("products", products);
         return "products";
     }
 
@@ -57,7 +93,7 @@ public class ProductController {
 
     @GetMapping("/{id}")
     public String editProduct(@PathVariable("id") Long id, Model model) {
-        logger.info("Product editing page requeted");
+        logger.info("Product editing page requested");
         model.addAttribute("product", productRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Product not found")));
         return "product_form";
@@ -66,10 +102,8 @@ public class ProductController {
     @GetMapping("/delete/{id}")
     public String deleteProduct(@PathVariable("id") Long id) {
         logger.info("Delete product requested");
-        if(productRepository.delete(id) != null) {
-            return "redirect:/product";
-        }
-        throw new NotFoundException("Product not found");
+        productRepository.deleteById(id);
+        return "redirect:/product";
     }
 
     @ExceptionHandler
