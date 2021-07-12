@@ -3,12 +3,12 @@ package ru.geekbrains.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import ru.geekbrains.persist.Product;
@@ -16,7 +16,6 @@ import ru.geekbrains.persist.ProductRepository;
 
 import javax.validation.Valid;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 
 @Controller
@@ -36,41 +35,29 @@ public class ProductController {
     public String listPage(Model model,
                            @RequestParam("productNameFilter") Optional<String> productNameFilter,
                            @RequestParam("minCostFilter") Optional<BigDecimal> minCostFilter,
-                           @RequestParam("maxCostFilter") Optional<BigDecimal> maxCostFilter) {
+                           @RequestParam("maxCostFilter") Optional<BigDecimal> maxCostFilter,
+                           @RequestParam("page") Optional<Integer> page,
+                           @RequestParam("size") Optional<Integer> size,
+                           @RequestParam("sortBy") Optional<String> sortBy) {
         logger.info("Product list page requested");
-        List<Product> products;
-        boolean isNameFilterPresent = productNameFilter.isPresent();
-        boolean isMinCostPresent = minCostFilter.isPresent();
-        boolean isMaxCostPresent = maxCostFilter.isPresent();
-        if(isNameFilterPresent && !isMinCostPresent && !isMaxCostPresent) {
-            products = productRepository
-                    .findByNameStartsWith(productNameFilter.get());
-        } else if(!isNameFilterPresent && isMinCostPresent && !isMaxCostPresent) {
-            products = productRepository
-                    .findByCostGreaterThanEqual(minCostFilter.get());
-        } else if(!isNameFilterPresent && !isMinCostPresent && isMaxCostPresent) {
-            products = productRepository
-                    .findByCostLessThanEqual(maxCostFilter.get());
-        } else if(isNameFilterPresent && isMinCostPresent && !isMaxCostPresent) {
-            products = productRepository
-                    .findByNameStartsWithAndCostGreaterThanEqual(productNameFilter.get(),
-                            minCostFilter.get());
-        } else if(isNameFilterPresent && !isMinCostPresent && isMaxCostPresent) {
-            products = productRepository
-                    .findByNameStartsWithAndCostLessThanEqual(productNameFilter.get(),
-                            maxCostFilter.get());
-        } else if(!isNameFilterPresent && isMinCostPresent && isMaxCostPresent) {
-            products = productRepository
-                    .findByCostBetween(minCostFilter.get(),
-                            maxCostFilter.get());
-        } else if(isNameFilterPresent && isMinCostPresent && isMaxCostPresent) {
-            products = productRepository
-                    .findByNameStartsWithAndCostBetween(productNameFilter.get(), minCostFilter.get(),
-                            maxCostFilter.get());
-        } else {
-            products = productRepository.findAll();
+        Specification<Product> spec = Specification.where(null);
+        if(productNameFilter.isPresent() && !productNameFilter.get().isBlank()) {
+            spec = spec.and(ProductSpecifications.productNamePrefix(productNameFilter.get()));
         }
-        model.addAttribute("products", products);
+        if(minCostFilter.isPresent()) {
+            spec = spec.and(ProductSpecifications.minCost(minCostFilter.get()));
+        }
+        if(maxCostFilter.isPresent()) {
+            spec = spec.and(ProductSpecifications.maxCost(maxCostFilter.get()));
+        }
+        Sort sortedBy;
+        if(sortBy.isPresent() && !sortBy.get().isBlank()) {
+            sortedBy = Sort.by(sortBy.get());
+        } else {
+            sortedBy = Sort.by("id");
+        }
+        model.addAttribute("products", productRepository.findAll(spec,
+                PageRequest.of(page.orElse(1) - 1, size.orElse(10), sortedBy)));
         return "products";
     }
 
