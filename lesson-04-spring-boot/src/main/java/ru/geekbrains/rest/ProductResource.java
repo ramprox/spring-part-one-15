@@ -1,10 +1,12 @@
 package ru.geekbrains.rest;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import ru.geekbrains.controller.NotFoundException;
+import ru.geekbrains.controller.ProductListParams;
 import ru.geekbrains.persist.Product;
 import ru.geekbrains.service.ProductService;
 
@@ -25,6 +27,11 @@ public class ProductResource {
         return productService.findAll();
     }
 
+    @GetMapping(produces = "application/json")
+    public Page<Product> findWithFilter(ProductListParams params) {
+        return productService.findWithFilter(params);
+    }
+
     @GetMapping(path = "/{id}", produces = "application/json")
     public Product findById(@PathVariable("id") Long id) {
         return productService.findById(id)
@@ -33,7 +40,7 @@ public class ProductResource {
 
     @PostMapping(produces = "application/json")
     public Product create(@RequestBody Product product) {
-        if(product.getId() != null) {
+        if(product.getId() != -1) {
             throw new BadRequestException("Product Id must be null");
         }
         productService.save(product);
@@ -42,7 +49,7 @@ public class ProductResource {
 
     @PutMapping(produces = "application/json")
     public void update(@RequestBody Product product) {
-        if(product.getId() == null) {
+        if(product.getId() == -1) {
             throw new BadRequestException("Product Id mustn't be null");
         }
         productService.save(product);
