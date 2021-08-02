@@ -9,10 +9,15 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
+import ru.geekbrains.persist.Role;
+import ru.geekbrains.persist.RoleRepository;
 import ru.geekbrains.persist.User;
 import ru.geekbrains.service.UserService;
 
 import javax.validation.Valid;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/user")
@@ -22,9 +27,12 @@ public class UserController {
 
     private final UserService userService;
 
+    private final RoleRepository roleRepository;
+
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, RoleRepository roleRepository) {
         this.userService = userService;
+        this.roleRepository = roleRepository;
     }
 
     @GetMapping
@@ -41,7 +49,27 @@ public class UserController {
         logger.info("New user page requested");
 
         model.addAttribute("user", new UserDto());
+        model.addAttribute("roles", roleRepository.findAll().stream()
+                .map(role -> new RoleDto(role.getId(), role.getName()))
+                .collect(Collectors.toList()));
         return "user_form";
+    }
+
+    @GetMapping("/register")
+    public String registerUserForm(Model model) {
+        logger.info("Register new user requested");
+        model.addAttribute("user", new UserDto());
+        return "user_register_form";
+    }
+
+    @PostMapping("/register")
+    public String registerUser(@Valid @ModelAttribute("user") UserDto userDto, BindingResult result, Model model) {
+        Role role = roleRepository.findByName("ROLE_GUEST")
+                .orElseThrow();
+        RoleDto roleDto = new RoleDto(role.getId(), role.getName());
+        userDto.getRoles().add(roleDto);
+        update(userDto, result, model);
+        return "redirect:/product";
     }
 
     @GetMapping("/{id}")
@@ -50,18 +78,27 @@ public class UserController {
 
         model.addAttribute("user", userService.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found")));
+        model.addAttribute("roles", roleRepository.findAll().stream()
+                .map(role -> new RoleDto(role.getId(), role.getName()))
+                .collect(Collectors.toList()));
         return "user_form";
     }
 
     @PostMapping
-    public String update(@Valid @ModelAttribute("user") UserDto user, BindingResult result) {
+    public String update(@Valid @ModelAttribute("user") UserDto user, BindingResult result, Model model) {
         logger.info("Saving user");
 
         if (result.hasErrors()) {
+            model.addAttribute("roles", roleRepository.findAll().stream()
+                    .map(role -> new RoleDto(role.getId(), role.getName()))
+                    .collect(Collectors.toList()));
             return "user_form";
         }
 
         if(!user.getPassword().equals(user.getMatchingPassword())) {
+            model.addAttribute("roles", roleRepository.findAll().stream()
+                    .map(role -> new RoleDto(role.getId(), role.getName()))
+                    .collect(Collectors.toList()));
             result.rejectValue("password", "", "Incorrect repeated password");
             return "user_form";
         }

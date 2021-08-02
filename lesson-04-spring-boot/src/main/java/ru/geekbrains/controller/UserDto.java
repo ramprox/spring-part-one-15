@@ -1,7 +1,12 @@
 package ru.geekbrains.controller;
 
+import ru.geekbrains.persist.Role;
+
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class UserDto {
 
@@ -19,13 +24,16 @@ public class UserDto {
     @NotBlank
     private String matchingPassword;
 
+    private Set<RoleDto> roles = new HashSet<>();
+
     public UserDto() {
     }
 
-    public UserDto(Long id, String username, Integer age) {
+    public UserDto(Long id, String username, Integer age, Set<RoleDto> roles) {
         this.id = id;
         this.username = username;
         this.age = age;
+        this.roles = roles;
     }
 
     public Long getId() {
@@ -66,5 +74,13 @@ public class UserDto {
 
     public void setMatchingPassword(String matchingPassword) {
         this.matchingPassword = matchingPassword;
+    }
+
+    public Set<RoleDto> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<RoleDto> roles) {
+        this.roles = roles;
     }
 }
